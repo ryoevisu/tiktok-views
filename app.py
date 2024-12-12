@@ -1,3 +1,21 @@
+import requests
+import re
+import random
+import string
+import base64
+import urllib.parse
+import json
+import time
+import os
+import sys
+from requests_toolbelt import MultipartEncoder
+from rich import print as printf
+from PIL import Image
+import pytesseract
+from rich.panel import Panel
+from rich.console import Console
+from requests.exceptions import RequestException
+
 try:
     import requests, re, random, string, base64, urllib.parse, json, time, os, sys
     from requests_toolbelt import MultipartEncoder
@@ -106,12 +124,12 @@ class REQUIRED:
                 response_text = response.text
 
                 if 'placeholder="Enter Video URL"' in response_text:
-                    self.video_form = re.search(r'name="(.*?)" placeholder="Enter Video URL"', response_text)
-                    self.post_action = re.findall(r'action="(.*?)">', response_text)
+                    video_form_match = re.search(r'name="(.*?)" placeholder="Enter Video URL"', response_text)
+                    post_actions = re.findall(r'action="(.*?)">', response_text)
 
-                    if self.video_form and len(self.post_action) > 3:
-                        self.video_form = self.video_form.group(1)
-                        self.post_action = self.post_action[3]
+                    if video_form_match and len(post_actions) > 3:
+                        self.video_form = video_form_match.group(1)
+                        self.post_action = post_actions[3]
                         printf(f"[bold bright_white]   ──>[bold green] SUCCESSFULLY FOUND VIDEO FORM!   ", end='\r')
                         time.sleep(1.5)
                         return self.SEND_VIEWS(self.video_form, self.post_action, video_url)
@@ -328,7 +346,7 @@ class MAIN:
                 printf(Panel(f"[bold white]You can use[bold green] CTRL + C[bold white] if stuck and use[bold red] CTRL + Z[bold white] if you want to stop. If views do not come\nin, try running manually and run this program again!", width=56, style="bold bright_white", title="[bold bright_white][ Note ]"))
                 while True:
                     try:
-                        if COOKIES['Cookie'] == None or len(COOKIES['Cookie']) == 0:
+                        if COOKIES['Cookie'] is None or len(COOKIES['Cookie']) == 0:
                             if not REQUIRED().LOGIN():
                                 raise Exception("Login failed")
                         else:
@@ -339,15 +357,16 @@ class MAIN:
                     except Exception as e:
                         printf(f"[bold bright_white]   ──>[bold red] ERROR: {str(e)}            ", end='\r')
                         time.sleep(7.5)
+                        COOKIES['Cookie'] = None  # Reset cookie on error
                         continue
-                    except (KeyboardInterrupt):
+                    except KeyboardInterrupt:
                         printf(f"\r                                 ", end='\r')
                         time.sleep(2.5)
                         break
             else:
                 printf(Panel(f"[bold red]Please enter the TikTok video link correctly. Make sure you get the video link from the browser!", width=56, style="bold bright_white", title="[bold bright_white][ Invalid Link ]"))
                 sys.exit()
-        except (Exception) as e:
+        except Exception as e:
             printf(Panel(f"[bold red]{str(e).capitalize()}!", width=56, style="bold bright_white", title="[bold bright_white][ Error ]"))
             sys.exit()
 
@@ -362,15 +381,15 @@ class MAIN:
 [bold white]  \/_____/   \/_____/   \/_/     \/_____/   \/_____/
         [underline green]Free TikTok Views - Coded by RYOEVISU""", width=56, style="bold bright_white")
         )
-        return (True)
+        return True
 
 if __name__ == '__main__':
     try:
         os.system('git pull')
         MAIN()
-    except (Exception) as e:
+    except Exception as e:
         printf(Panel(f"[bold red]{str(e).capitalize()}!", width=56, style="bold bright_white", title="[bold bright_white][ Error ]"))
         sys.exit()
-    except (KeyboardInterrupt):
+    except KeyboardInterrupt:
         sys.exit()
 
