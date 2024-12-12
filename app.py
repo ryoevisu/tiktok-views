@@ -100,23 +100,36 @@ class REQUIRED:
                     'Sec-Fetch-Dest': 'document',
                 }
             )
-            response = session.get('https://zefoy.com/').text
+            try:
+                response = session.get('https://zefoy.com/')
+                response.raise_for_status()  # Raise an exception for bad status codes
+                response_text = response.text
 
-            if 'placeholder="Enter Video URL"' in str(response):
-                self.video_form = re.search(r'name="(.*?)" placeholder="Enter Video URL"', str(response)).group(1)
-                self.post_action = re.findall(r'action="(.*?)">', str(response))[3]
-                printf(f"[bold bright_white]   ──>[bold green] SUCCESSFULLY FOUND VIDEO FORM!   ", end='\r')
-                time.sleep(1.5)
-                self.SEND_VIEWS(self.video_form, self.post_action, video_url)
-            else:
-                printf(f"[bold bright_white]   ──>[bold red] VIDEO FORM NOT FOUND!        ", end='\r')
-                time.sleep(3.5)
-                COOKIES.update(
-                    {
-                        "Cookie": None
-                    }
-                )
-                return (False)
+                if 'placeholder="Enter Video URL"' in response_text:
+                    self.video_form = re.search(r'name="(.*?)" placeholder="Enter Video URL"', response_text)
+                    self.post_action = re.findall(r'action="(.*?)">', response_text)
+
+                    if self.video_form and len(self.post_action) > 3:
+                        self.video_form = self.video_form.group(1)
+                        self.post_action = self.post_action[3]
+                        printf(f"[bold bright_white]   ──>[bold green] SUCCESSFULLY FOUND VIDEO FORM!   ", end='\r')
+                        time.sleep(1.5)
+                        return self.SEND_VIEWS(self.video_form, self.post_action, video_url)
+                    else:
+                        raise ValueError("Failed to extract video form or post action")
+                else:
+                    raise ValueError("Video form placeholder not found in response")
+
+            except requests.RequestException as e:
+                printf(f"[bold bright_white]   ──>[bold red] NETWORK ERROR: {str(e)}        ", end='\r')
+            except ValueError as e:
+                printf(f"[bold bright_white]   ──>[bold red] PARSING ERROR: {str(e)}        ", end='\r')
+            except Exception as e:
+                printf(f"[bold bright_white]   ──>[bold red] UNEXPECTED ERROR: {str(e)}        ", end='\r')
+
+            time.sleep(3.5)
+            COOKIES.update({"Cookie": None})
+            return False
     
     def SEND_VIEWS(self, video_form, post_action, video_url):
         global SUCCESS, FAILED
@@ -316,22 +329,21 @@ class MAIN:
                 while True:
                     try:
                         if COOKIES['Cookie'] == None or len(COOKIES['Cookie']) == 0:
-                            REQUIRED().LOGIN()
+                            if not REQUIRED().LOGIN():
+                                raise Exception("Login failed")
                         else:
                             printf(f"[bold bright_white]   ──>[bold green] SENDING VIEWS!     ", end='\r')
                             time.sleep(2.5)
-                            REQUIRED().GET_FORM(video_url)
-                    except (AttributeError, IndexError):
-                        printf(f"[bold bright_white]   ──>[bold red] ERROR OCCURRED IN INDEX FORM!            ", end='\r')
-                        time.sleep(7.5)
-                        continue
-                    except (RequestException):
-                        printf(f"[bold bright_white]   ──>[bold red] YOUR CONNECTION IS HAVING A PROBLEM!     ", end='\r')
+                            if not REQUIRED().GET_FORM(video_url):
+                                raise Exception("Failed to get or process video form")
+                    except Exception as e:
+                        printf(f"[bold bright_white]   ──>[bold red] ERROR: {str(e)}            ", end='\r')
                         time.sleep(7.5)
                         continue
                     except (KeyboardInterrupt):
                         printf(f"\r                                 ", end='\r')
                         time.sleep(2.5)
+                        break
             else:
                 printf(Panel(f"[bold red]Please enter the TikTok video link correctly. Make sure you get the video link from the browser!", width=56, style="bold bright_white", title="[bold bright_white][ Invalid Link ]"))
                 sys.exit()
@@ -361,3 +373,4 @@ if __name__ == '__main__':
         sys.exit()
     except (KeyboardInterrupt):
         sys.exit()
+
