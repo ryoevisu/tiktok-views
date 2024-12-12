@@ -103,20 +103,27 @@ class REQUIRED:
             response = session.get('https://zefoy.com/').text
 
             if 'placeholder="Enter Video URL"' in str(response):
-                self.video_form = re.search(r'name="(.*?)" placeholder="Enter Video URL"', str(response)).group(1)
-                self.post_action = re.findall(r'action="(.*?)">', str(response))[3]
-                printf(f"[bold bright_white]   ──>[bold green] SUCCESSFULLY FOUND VIDEO FORM!   ", end='\r')
-                time.sleep(1.5)
-                self.SEND_VIEWS(self.video_form, self.post_action, video_url)
+                try:
+                    self.video_form = re.search(r'name="(.*?)" placeholder="Enter Video URL"', str(response)).group(1)
+                    post_actions = re.findall(r'action="(.*?)">', str(response))
+                    if len(post_actions) >= 4:
+                        self.post_action = post_actions[3]
+                    else:
+                        raise IndexError("Not enough post actions found")
+                    
+                    printf(f"[bold bright_white]   ──>[bold green] SUCCESSFULLY FOUND VIDEO FORM!   ", end='\r')
+                    time.sleep(1.5)
+                    self.SEND_VIEWS(self.video_form, self.post_action, video_url)
+                except (AttributeError, IndexError) as e:
+                    printf(f"[bold bright_white]   ──>[bold red] ERROR IN PARSING FORM: {str(e)}        ", end='\r')
+                    time.sleep(3.5)
+                    COOKIES.update({"Cookie": None})
+                    return False
             else:
                 printf(f"[bold bright_white]   ──>[bold red] VIDEO FORM NOT FOUND!        ", end='\r')
                 time.sleep(3.5)
-                COOKIES.update(
-                    {
-                        "Cookie": None
-                    }
-                )
-                return (False)
+                COOKIES.update({"Cookie": None})
+                return False
     
     def SEND_VIEWS(self, video_form, post_action, video_url):
         global SUCCESS, FAILED
@@ -143,56 +150,102 @@ class REQUIRED:
                 }, boundary=boundary
             )
 
-            response = session.post('https://zefoy.com/{}'.format(post_action), data = data).text
-            self.base64_string = self.DECRYPT_BASE64(response)
+            try:
+                response = session.post(f'https://zefoy.com/{post_action}', data=data).text
+                self.base64_string = self.DECRYPT_BASE64(response)
 
-            if 'type="submit"' in str(self.base64_string):
-                boundary = '----WebKitFormBoundary' \
-                    + ''.join(random.sample(string.ascii_letters + string.digits, 16))
-                session.headers.update(
-                    {
-                        'Content-Type': 'multipart/form-data; boundary={}'.format(boundary),
-                    }
-                )
-                self.find_form_video = re.findall(r'type="hidden" name="(.*?)" value="(.*?)"', str(self.base64_string))
-                if len(self.find_form_video) >= 2:
-                    self.form_videolink, self.videolink = self.find_form_video[1][0], self.find_form_video[1][1]
-                    self.form_videoid, self.videoid = self.find_form_video[0][0], self.find_form_video[0][1]
-                else:
-                    printf(f"[bold bright_white]   ──>[bold red] UNABLE TO FIND REQUIRED FORM FIELDS!     ", end='\r')
-                    time.sleep(3.5)
-                    return (False)
-                self.next_post_action = re.search(r'action="(.*?)"', str(self.base64_string)).group(1)
-                data = MultipartEncoder(
-                    {
-                        self.form_videoid: (None, self.videoid),
-                        self.form_videolink: (None, self.videolink)
-                    }, boundary=boundary
-                )
+                if 'type="submit"' in str(self.base64_string):
+                    boundary = '----WebKitFormBoundary' \
+                        + ''.join(random.sample(string.ascii_letters + string.digits, 16))
+                    session.headers.update(
+                        {
+                            'Content-Type': 'multipart/form-data; boundary={}'.format(boundary),
+                        }
+                    )
+                    self.find_form_video = re.findall(r'type="hidden" name="(.*?)" value="(.*?)"', str(self.base64_string))
+                    if len(self.find_form_video) >= 2:
+                        self.form_videolink, self.videolink = self.find_form_video[1][0], self.find_form_video[1][1]
+                        self.form_videoid, self.videoid = self.find_form_video[0][0], self.find_form_video[0][1]
+                    else:
+                        raise IndexError("Unable to find required form fields")
+                    
+                    self.next_post_action = re.search(r'action="(.*?)"', str(self.base64_string)).group(1)
+                    data = MultipartEncoder(
+                        {
+                            self.form_videoid: (None, self.videoid),
+                            self.form_videolink: (None, self.videolink)
+                        }, boundary=boundary
+                    )
 
-                response2 = session.post('https://zefoy.com/{}'.format(self.next_post_action), data = data).text
-                self.base64_string2 = self.DECRYPT_BASE64(response2)
+                    response2 = session.post(f'https://zefoy.com/{self.next_post_action}', data=data).text
+                    self.base64_string2 = self.DECRYPT_BASE64(response2)
 
-                if 'Successfully 1000 views sent.' in str(self.base64_string2):
-                    SUCCESS.append(f"{self.base64_string2}")
-                    printf(Panel(f"""[bold white]Status :[bold green] Successfully...
+                    if 'Successfully 1000 views sent.' in str(self.base64_string2):
+                        SUCCESS.append(f"{self.base64_string2}")
+                        printf(Panel(f"""[bold white]Status :[bold green] Successfully...
 [bold white]Link :[bold red] {video_url}
 [bold white]Views :[bold yellow] +1000""", width=56, style="bold bright_white", title="[bold bright_white][ Success ]"))
-                    printf(f"[bold bright_white]   ──>[bold green] TRY SENDING VIEWS AGAIN!           ", end='\r')
-                    time.sleep(2.5)
-                    self.SEND_VIEWS(video_form, post_action, video_url)
-                elif 'Successfully ' in str(self.base64_string2) and ' views sent.' in str(self.base64_string2):
-                    self.views_sent = re.search(r'Successfully (.*?) views sent.', str(self.base64_string2)).group(1)
-                    SUCCESS.append(f"{self.base64_string2}")
-                    printf(Panel(f"""[bold white]Status :[bold yellow] Successfully...
+                        printf(f"[bold bright_white]   ──>[bold green] TRY SENDING VIEWS AGAIN!           ", end='\r')
+                        time.sleep(2.5)
+                        self.SEND_VIEWS(video_form, post_action, video_url)
+                    elif 'Successfully ' in str(self.base64_string2) and ' views sent.' in str(self.base64_string2):
+                        self.views_sent = re.search(r'Successfully (.*?) views sent.', str(self.base64_string2)).group(1)
+                        SUCCESS.append(f"{self.base64_string2}")
+                        printf(Panel(f"""[bold white]Status :[bold yellow] Successfully...
 [bold white]Link :[bold red] {video_url}
 [bold white]Views :[bold green] +{self.views_sent}""", width=56, style="bold bright_white", title="[bold bright_white][ Success ]"))
+                        printf(f"[bold bright_white]   ──>[bold green] TRY SENDING VIEWS AGAIN!           ", end='\r')
+                        time.sleep(2.5)
+                        self.SEND_VIEWS(video_form, post_action, video_url)
+                    else:
+                        FAILED.append(f"{self.base64_string2}")
+                        printf(f"[bold bright_white]   ──>[bold red] FAILED TO SEND VIEWS!           ", end='\r')
+                        time.sleep(3.5)
+                        COOKIES.update(
+                            {
+                                "Cookie": None
+                            }
+                        )
+                        return (False)
+                elif 'Checking Timer...' in str(self.base64_string):
+                    printf(f"[bold bright_white]   ──>[bold green] WAIT FOR 4 MINUTES!          ", end='\r')
+                    time.sleep(2.5)
+
+                    list(map(lambda _: (self.DELAY(0, 30), self.ANTI_LOGOUT()), range(8)))
+
                     printf(f"[bold bright_white]   ──>[bold green] TRY SENDING VIEWS AGAIN!           ", end='\r')
                     time.sleep(2.5)
                     self.SEND_VIEWS(video_form, post_action, video_url)
-                else:
-                    FAILED.append(f"{self.base64_string2}")
-                    printf(f"[bold bright_white]   ──>[bold red] FAILED TO SEND VIEWS!           ", end='\r')
+                elif 'Please try again later or' in str(self.base64_string):
+                    printf(f"[bold bright_white]   ──>[bold red] PLEASE TRY AGAIN IN A FEW MOMENTS!     ", end='\r')
+                    time.sleep(2.5)
+                    self.DELAY(0, 300)
+                    return (False)
+                elif 'Please try again later. Server too busy.' in str(self.base64_string):
+                    printf(Panel(f"[bold red]Zefoy server is busy, you can try again in a few days, please check regularly on zefoy.com!", width=56, style="bold bright_white", title="[bold bright_white][ Server Busy ]"))
+                    sys.exit()
+                elif 'An error occurred. Please try again.' in str(self.base64_string):
+                    printf(f"[bold bright_white]   ──>[bold red] AN ERROR OCCURRED, PLEASE TRY AGAIN IN A FEW MOMENTS!", end='\r')
+                    time.sleep(2.5)
+                    self.DELAY(0, 120)
+                    return (False)
+                elif 'Too many requests. Please slow down.' in str(self.base64_string):
+                    printf(f"[bold bright_white]   ──>[bold red]SUBJECT TO SPAM OR LIMIT!           ", end='\r')
+                    time.sleep(2.5)
+                    self.DELAY(0, 500)
+                    return (False)
+                elif 'Please wait ' in str(self.base64_string) and ' seconds before trying again.' in str(self.base64_string):
+                    self.wait_time = re.search(r'Please wait (.*?) seconds before trying again.', str(self.base64_string)).group(1)
+                    printf(f"[bold bright_white]   ──>[bold red] PLEASE WAIT {self.wait_time} SECONDS BEFORE TRYING AGAIN!     ", end='\r')
+                    time.sleep(2.5)
+
+                    self.DELAY(0, int(self.wait_time))
+
+                    printf(f"[bold bright_white]   ──>[bold green] TRY SENDING VIEWS AGAIN!           ", end='\r')
+                    time.sleep(2.5)
+                    self.SEND_VIEWS(video_form, post_action, video_url)
+                else: # YOU CAN DEBUGGING IF THIS ERROR HAPPENS!
+                    printf(f"[bold bright_white]   ──>[bold red] FAILED TO GET VIEWS FORM!     ", end='\r')
                     time.sleep(3.5)
                     COOKIES.update(
                         {
@@ -200,52 +253,11 @@ class REQUIRED:
                         }
                     )
                     return (False)
-            elif 'Checking Timer...' in str(self.base64_string):
-                printf(f"[bold bright_white]   ──>[bold green] WAIT FOR 4 MINUTES!          ", end='\r')
-                time.sleep(2.5)
-
-                list(map(lambda _: (self.DELAY(0, 30), self.ANTI_LOGOUT()), range(8)))
-
-                printf(f"[bold bright_white]   ──>[bold green] TRY SENDING VIEWS AGAIN!           ", end='\r')
-                time.sleep(2.5)
-                self.SEND_VIEWS(video_form, post_action, video_url)
-            elif 'Please try again later or' in str(self.base64_string):
-                printf(f"[bold bright_white]   ──>[bold red] PLEASE TRY AGAIN IN A FEW MOMENTS!     ", end='\r')
-                time.sleep(2.5)
-                self.DELAY(0, 300)
-                return (False)
-            elif 'Please try again later. Server too busy.' in str(self.base64_string):
-                printf(Panel(f"[bold red]Zefoy server is busy, you can try again in a few days, please check regularly on zefoy.com!", width=56, style="bold bright_white", title="[bold bright_white][ Server Busy ]"))
-                sys.exit()
-            elif 'An error occurred. Please try again.' in str(self.base64_string):
-                printf(f"[bold bright_white]   ──>[bold red] AN ERROR OCCURRED, PLEASE TRY AGAIN IN A FEW MOMENTS!", end='\r')
-                time.sleep(2.5)
-                self.DELAY(0, 120)
-                return (False)
-            elif 'Too many requests. Please slow down.' in str(self.base64_string):
-                printf(f"[bold bright_white]   ──>[bold red]SUBJECT TO SPAM OR LIMIT!           ", end='\r')
-                time.sleep(2.5)
-                self.DELAY(0, 500)
-                return (False)
-            elif 'Please wait ' in str(self.base64_string) and ' seconds before trying again.' in str(self.base64_string):
-                self.wait_time = re.search(r'Please wait (.*?) seconds before trying again.', str(self.base64_string)).group(1)
-                printf(f"[bold bright_white]   ──>[bold red] PLEASE WAIT {self.wait_time} SECONDS BEFORE TRYING AGAIN!     ", end='\r')
-                time.sleep(2.5)
-
-                self.DELAY(0, int(self.wait_time))
-
-                printf(f"[bold bright_white]   ──>[bold green] TRY SENDING VIEWS AGAIN!           ", end='\r')
-                time.sleep(2.5)
-                self.SEND_VIEWS(video_form, post_action, video_url)
-            else: # YOU CAN DEBUGGING IF THIS ERROR HAPPENS!
-                printf(f"[bold bright_white]   ──>[bold red] FAILED TO GET VIEWS FORM!     ", end='\r')
+            except Exception as e:
+                printf(f"[bold bright_white]   ──>[bold red] ERROR IN SENDING VIEWS: {str(e)}           ", end='\r')
                 time.sleep(3.5)
-                COOKIES.update(
-                    {
-                        "Cookie": None
-                    }
-                )
-                return (False)
+                COOKIES.update({"Cookie": None})
+                return False
 
     def ANTI_LOGOUT(self):
         with requests.Session() as session:
@@ -320,18 +332,17 @@ class MAIN:
                         else:
                             printf(f"[bold bright_white]   ──>[bold green] SENDING VIEWS!     ", end='\r')
                             time.sleep(2.5)
-                            REQUIRED().GET_FORM(video_url)
-                    except (AttributeError, IndexError):
-                        printf(f"[bold bright_white]   ──>[bold red] ERROR OCCURRED IN INDEX FORM!            ", end='\r')
-                        time.sleep(7.5)
-                        continue
-                    except (RequestException):
-                        printf(f"[bold bright_white]   ──>[bold red] YOUR CONNECTION IS HAVING A PROBLEM!     ", end='\r')
+                            result = REQUIRED().GET_FORM(video_url)
+                            if not result:
+                                raise Exception("Failed to get or process form")
+                    except Exception as e:
+                        printf(f"[bold bright_white]   ──>[bold red] ERROR: {str(e)}            ", end='\r')
                         time.sleep(7.5)
                         continue
                     except (KeyboardInterrupt):
                         printf(f"\r                                 ", end='\r')
                         time.sleep(2.5)
+                        break
             else:
                 printf(Panel(f"[bold red]Please fill in the TikTok video link correctly, make sure you take the video link in the browser!", width=56, style="bold bright_white", title="[bold bright_white][ Wrong Link ]"))
                 sys.exit()
@@ -357,7 +368,7 @@ if __name__ == '__main__':
         os.system('git pull')
         subscribe_file = "Storage/Subscribe.json"
         if not os.path.exists(subscribe_file):
-            youtube_url = requests.get('https://raw.githubusercontent.com/ryoevisu/tiktok-views/refs/heads/main/Storage/Subscribe.json').json()['Link']
+            youtube_url = requests.get('https://raw.githubusercontent.com/RozhakXD/Zefoy/main/Storage/Youtube.json').json()['Link']
             os.system(f'xdg-open {youtube_url}')
             with open(subscribe_file, 'w') as w:
                 json.dump({"Status": True}, w, indent=4)
@@ -368,3 +379,4 @@ if __name__ == '__main__':
         sys.exit()
     except (KeyboardInterrupt):
         sys.exit()
+
