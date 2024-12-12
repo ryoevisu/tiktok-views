@@ -348,7 +348,7 @@ class MAIN:
 [bold red]\/_/  /__  \ \  __\   \ \  __\ \ \ \/\ \  \ \____ \  
 [bold white]  /\_____\  \ \_____\  \ \_\    \ \_____\  \/\_____\ 
 [bold white]  \/_____/   \/_____/   \/_/     \/_____/   \/_____/
-        [underline green]Free Tiktok Views - Coded by Rozhak""", width=56, style="bold bright_white")
+        [underline green]Free Tiktok Views - Coded by RyoEvisu""", width=56, style="bold bright_white")
         )
         return (True)
 
