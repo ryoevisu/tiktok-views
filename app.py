@@ -38,7 +38,7 @@ class DIPERLUKAN:
                 printf(Panel(f"[bold red]Zefoy server is currently affected by cloudflare, you can try again until cloudflare\nis gone, please visit[bold green] zefoy.com[bold red] to check it!", width=56, style="bold bright_white", title="[bold bright_white][ Cloudflare ]"))
                 sys.exit()
             else:
-                self.captcha_image = re.search(r'src="(.*?)" onerror="errimg\(\)"', str(response)).group(1).replace('amp;', '')
+                self.captcha_image = re.search(r'src="(.*?)" onerror="errimg$$$$"', str(response)).group(1).replace('amp;', '')
                 self.form = re.search(r'type="text" name="(.*?)"', str(response)).group(1)
                 session.headers.update(
                     {
@@ -225,7 +225,7 @@ class DIPERLUKAN:
             elif 'Too many requests. Please slow down.' in str(self.base64_string):
                 printf(f"[bold bright_white]   ──>[bold red] SUBJECT TO SPAM OR LIMIT!           ", end='\r')
                 time.sleep(2.5)
-                self.DELAY(0, 500)
+                self.DELAY(0,500)
                 return (False)
             elif 'Please wait ' in str(self.base64_string) and ' seconds before trying again.' in str(self.base64_string):
                 self.wait_time = re.search(r'Please wait (.*?) seconds before trying again.', str(self.base64_string)).group(1)
@@ -299,7 +299,7 @@ class DIPERLUKAN:
             }
             response = session.get('https://partner.googleadservices.com/gampad/cookie.js', params=params).text
             if '_gfp_s_' in str(response):
-                self.json_cookies = json.loads(re.search(r'_gfp_s_\((.*?)\);', str(response)).group(1))
+                self.json_cookies = json.loads(re.search(r'_gfp_s_$$(.*?)$$;', str(response)).group(1))
                 return (f"_gads={self.json_cookies['_cookies_'][0]['_value_']}; __gpi={self.json_cookies['_cookies_'][1]['_value_']}")
             else:
                 return ('_gads=; __gpi=;')
@@ -355,13 +355,6 @@ class MAIN:
 if __name__ == '__main__':
     try:
         os.system('git pull')
-        subscribe_file = "Penyimpanan/Subscribe.json"
-        if not os.path.exists(subscribe_file):
-            youtube_url = requests.get('https://raw.githubusercontent.com/RozhakXD/Zefoy/main/Penyimpanan/Youtube.json').json()['Link']
-            os.system(f'xdg-open {youtube_url}')
-            with open(subscribe_file, 'w') as w:
-                json.dump({"Status": True}, w, indent=4)
-            time.sleep(3.5)
         MAIN()
     except (Exception) as e:
         printf(Panel(f"[bold red]{str(e).capitalize()}!", width=56, style="bold bright_white", title="[bold bright_white][ Error ]"))
