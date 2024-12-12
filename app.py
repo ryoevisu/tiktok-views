@@ -355,7 +355,7 @@ class MAIN:
 if __name__ == '__main__':
     try:
         os.system('git pull')
-        subscribe_file = "PenyimpananSubscribe.json"
+        subscribe_file = "Penyimpanan/Youtube.json"
         if not os.path.exists(subscribe_file):
             youtube_url = requests.get('https://raw.githubusercontent.com/RozhakXD/Zefoy/main/Penyimpanan/Youtube.json').json()['Link']
             os.system(f'xdg-open {youtube_url}')
